@@ -81,10 +81,39 @@ pub fn part2(input: []const u8) usize {
     for (beams.t[0..beams.count]) |t| timelines += t;
     return timelines;
 }
+pub fn simpler(input: []const u8) [2]usize {
+    var i: usize = 0;
+    var x: u32 = 0;
+    var y: u32 = 0;
+    var beams: [256]usize = @splat(0);
+    var num_splits: usize = 0;
+    while (i < input.len) {
+        if (input[i] == '\n') {
+            x = 0xffff_ffff;
+            y += 1;
+        } else if (input[i] == 'S') {
+            beams[x] = 1;
+        } else if (input[i] == '^') {
+            const t = beams[x];
+            beams[x - 1] += t;
+            beams[x + 1] += t;
+            beams[x] = 0;
+            if (t != 0) num_splits += 1;
+        }
+        i += 1;
+        x +%= 1;
+    }
+    var timelines: usize = 0;
+    for (beams) |t| timelines += t;
+    return .{ num_splits, timelines };
+}
 test {
     const input = @embedFile("day7.txt");
     try std.testing.expectEqual(1658, part1(input));
     try std.testing.expectEqual(53916299384254, part2(input));
+    const t, const s = simpler(input);
+    try std.testing.expectEqual(1658, t);
+    try std.testing.expectEqual(53916299384254, s);
 }
 // pub fn main() !void {
 test {
@@ -108,6 +137,9 @@ test {
     ;
     try std.testing.expectEqual(21, part1(input));
     try std.testing.expectEqual(40, part2(input));
+    const t, const s = simpler(input);
+    try std.testing.expectEqual(21, t);
+    try std.testing.expectEqual(40, s);
 }
 const assert = std.debug.assert;
 const print = std.debug.print;
