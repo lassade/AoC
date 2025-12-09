@@ -1,7 +1,7 @@
 var fat: struct {
-    d: [1024 * 1024]usize,
-    con: [1024 * 1024]usize,
-    len: usize,
+    d: [(1024 * 1024) / 2]usize,
+    con: [(1024 * 1024) / 2]usize,
+    len: u32,
     pub inline fn lessThan(c: *@This(), a: usize, b: usize) bool {
         return c.d[a] < c.d[b];
     }
@@ -10,7 +10,7 @@ var fat: struct {
         std.mem.swap(usize, &c.con[a], &c.con[b]);
     }
 } = undefined;
-pub fn part1(input: []const u8, con_limit: u32) usize {
+pub fn solve(input: []const u8, con_limit: u32) struct { usize, usize } {
     // parse
     var boxes: [3 * 1024]i32 = undefined;
     var count: u32 = 0;
@@ -26,7 +26,6 @@ pub fn part1(input: []const u8, con_limit: u32) usize {
         }
     }
     count = @divExact(count, 3);
-    print("count: {d}\n", .{count});
     assert(count < 1024);
     // build table
     fat.len = 0;
@@ -42,10 +41,11 @@ pub fn part1(input: []const u8, con_limit: u32) usize {
         }
     }
     std.sort.pdqContext(0, fat.len, &fat);
+    var x_wall: usize = 0;
     // connect
     var ckt: [1024]u32 = undefined;
     @memset(ckt[0..count], 0xffff_ffff);
-    var con_rem: u32 = 0; // todo: something might be worng
+    var con_rem: usize = 0; // todo: something might be worng
     for (0..fat.len) |i| {
         const con = fat.con[i];
         const a = (con >> 32) & 0xffff_ffff;
@@ -61,7 +61,6 @@ pub fn part1(input: []const u8, con_limit: u32) usize {
             } else if (ckt[a] == 0xffff_ffff or ckt[b] == 0xffff_ffff) {
                 // valid conection reusing the ckt id
             } else {
-                // print("{d} -> {d}\n", .{ @max(ckt[a], ckt[b]), id });
                 std.mem.replaceScalar(u32, ckt[0..count], @max(ckt[a], ckt[b]), id); // merge ckt
             }
         }
@@ -69,11 +68,16 @@ pub fn part1(input: []const u8, con_limit: u32) usize {
         ckt[a] = id;
         ckt[b] = id;
         con_rem += 1;
-        // print("({} {}) -> {}\n", .{ a, b, id });
+        if (std.mem.allEqual(u32, ckt[0..count], id)) {
+            const x0: isize = boxes[a * 3];
+            const x1: isize = boxes[b * 3];
+            x_wall = @intCast(x0 * x1);
+            con_rem = con_limit; // nothing left to be done
+        }
         if (con_rem >= con_limit) break;
-        // } else {
-        //     // print("({} {}) invalid\n", .{ a, b });
         // }
+    } else {
+        unreachable;
     }
     assert(con_rem == con_limit);
 
@@ -96,17 +100,19 @@ pub fn part1(input: []const u8, con_limit: u32) usize {
 
     var mul: usize = 1;
     for (0..3) |i| {
-        print("{d}\n", .{len[i]});
         mul *= len[i];
     }
 
-    return mul;
-}
-test {
-    const input = @embedFile("day8.txt");
-    try std.testing.expectEqual(0, part1(input, 1000)); // 1000 < x
+    return .{ mul, x_wall };
 }
 // pub fn main() !void {
+test {
+    const input = @embedFile("day8.txt");
+    const p1, _ = solve(input, 1000);
+    _, const p2 = solve(input, 0xffff_ffff);
+    try std.testing.expectEqual(123234, p1);
+    try std.testing.expectEqual(9259958565, p2);
+}
 test {
     const input =
         \\162,817,812
@@ -131,7 +137,10 @@ test {
         \\425,690,689
         \\
     ;
-    try std.testing.expectEqual(40, part1(input, 10));
+    const p1, _ = solve(input, 10);
+    _, const p2 = solve(input, 0xffff_ffff);
+    try std.testing.expectEqual(40, p1);
+    try std.testing.expectEqual(25272, p2);
 }
 const assert = std.debug.assert;
 const print = std.debug.print;
